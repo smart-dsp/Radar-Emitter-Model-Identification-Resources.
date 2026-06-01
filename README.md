@@ -1,778 +1,496 @@
-
-# 雷达调制类型识别资源汇总
+# 雷达辐射源型号识别资源汇总
 
 <p align="center">
   <b>简体中文</b> |
   <a href="./README.en.md">English</a>
 </p>
 
-本仓库持续整理 **Radar Modulation Type Recognition / Radar Waveform Recognition / Automatic Intrapulse Modulation Classification（雷达调制类型识别 / 雷达波形识别 / 雷达脉内调制识别）** 相关的开源资源，重点关注任务定义、公开数据集、开源实现、代表性方法、评价指标、可复现实验设置以及相关任务边界。
+本仓库由 **厦门大学信息学院 SmartDSP 实验室** 整理，汇总 **雷达辐射源型号识别 / 雷达辐射源类型识别 / 雷达辐射源分类** 相关的公开资源、代表性论文和可复现实验建议。
 
-Radar modulation type recognition 的目标是：给定非合作接收机截获到的一段雷达信号，通常为复基带 **I/Q 序列**、时频图、频谱图或其他特征表示，识别其采用的雷达波形或脉内调制类型，例如 **LFM、NLFM、SFM、Costas、Barker、Frank、P1/P2/P3/P4、BPSK、QPSK、FSK、OFDM、FMCW** 等。
+本页的核心任务是 **雷达辐射源型号识别**，即根据截获雷达信号、脉冲描述字（Pulse Description Word, PDW）参数序列、脉内特征或工作行为序列，判断目标辐射源属于哪一种 **已知雷达型号、装备族、功能类别或辐射源类别**。
 
-目前该方向的开源资源比较分散，不同项目对 `radar waveform recognition`、`LPI radar recognition`、`radar signal recognition`、`automatic intrapulse modulation classification`、`radar modulation classification` 等概念的使用并不完全一致。因此，本仓库尝试对相关资源进行人工整理，并标注其任务类型、数据可用性、监督方式、是否严格符合“雷达调制类型识别”定义，以及是否容易复现。
+本资源列表采用以下原则：
 
----
-
-## Highlights / 快速结论
-
-* **标准 benchmark 首选：** AIMC-Spec、DeepRadar2022、RadChar / RadCharSSL。
-* **经典复现起点：** LPI-Radar-Waveform-Recognition，采用 CWD 时频分析 + CNN / LPI-Net。
-* **数据生成起点：** Radar-Intra-Pulse-Modulation-Signal-Simulation 与 Radar-Intra-Pulse-Modulation-Simulation。
-* **低信噪比鲁棒识别：** DNCNet、SEMTN、SFUnet-DCNN 等方向值得关注。
-* **少样本 / 自监督方向：** RadCharSSL、CTNet-SSL、few-shot radar signal recognition 相关代码。
-* **扩展任务：** 多分量雷达信号识别、参数估计、信号解析、雷达 + 通信联合识别等与调制识别密切相关，但不应与标准单信号调制分类混为一类。
-* **需要谨慎区分：** 通信 AMC、雷达目标识别、雷达检测、脉冲分选、雷达辐射源个体识别、RF fingerprinting 与雷达调制类型识别不是同一个任务。
-
-> 注：本仓库中的 ⭐ 推荐程度是整理者基于任务匹配度、开源程度、复现价值和数据说明完整度给出的主观推荐，不代表 GitHub stars。
+* 优先保留直接面向 **雷达辐射源识别、雷达辐射源型号识别、雷达辐射源类型识别** 的论文和资源；
+* 对于只有调制类别、波形类别或设备个体编号标签的数据集，只作为相关任务或辅助资源；
+* 对于没有明确论文、数据说明或复现价值较弱的项目，不纳入正文推荐；
+* 对于没有公开数据或官方代码但论文任务高度相关的方法，放入“代表性论文”而不是“开源资源”。
 
 ---
 
-## 目录 / Table of Contents
+## 快速结论
 
-* [1. 任务概述 / Overview](#1-任务概述--overview)
+* **严格型号识别公开数据非常少。** 目前尚缺少稳定、公开、可复现的真实雷达型号级基准数据集。大多数论文使用是自建的仿真 PDW、仿真雷达参数集、内部截获数据或自建型号库。
+* **更接近型号识别的公开资源** 是 RadarCommDataset 这类包含雷达功能类别或信号类型标签的数据，但它仍然不是严格的雷达型号级数据集。
+* **型号识别代表性论文** 应重点关注 PDW 参数集识别、雷达辐射源识别、开放集雷达辐射源识别、迁移学习 / 在线学习、敏捷波形辐射源识别等方向。
+* **实验报告必须说明标签含义。** 标签是型号、功能类别、波形类别、调制类别、个体编号，还是工作模式，决定了任务是否属于严格型号识别。
 
-  * [1.1 什么是雷达调制类型识别？](#11-什么是雷达调制类型识别)
-  * [1.2 常见输入表示](#12-常见输入表示)
-  * [1.3 常见调制类别](#13-常见调制类别)
+---
+
+## 目录
+
+* [快速结论](#快速结论)
+* [1. 任务概述](#1-任务概述)
+
+  * [1.1 什么是雷达辐射源型号识别？](#11-什么是雷达辐射源型号识别)
+  * [1.2 与相邻任务的区别](#12-与相邻任务的区别)
+  * [1.3 常见输入特征](#13-常见输入特征)
   * [1.4 常见评价指标](#14-常见评价指标)
-* [2. 方法分类与任务边界 / Method Taxonomy and Task Fit](#2-方法分类与任务边界--method-taxonomy-and-task-fit)
+* [2. 方法分类与任务边界](#2-方法分类与任务边界)
 
-  * [2.1 传统特征 + 分类器方法](#21-传统特征--分类器方法)
-  * [2.2 时频图 + 深度学习方法](#22-时频图--深度学习方法)
-  * [2.3 一维 I/Q 序列端到端方法](#23-一维-iq-序列端到端方法)
-  * [2.4 去噪 / 增强 + 识别方法](#24-去噪--增强--识别方法)
-  * [2.5 少样本、自监督与域适应方法](#25-少样本自监督与域适应方法)
-  * [2.6 度量学习、开放集与未知类识别](#26-度量学习开放集与未知类识别)
-  * [2.7 哪些方法严格符合调制识别定义？](#27-哪些方法严格符合调制识别定义)
-* [3. 数据集资源 / Datasets](#3-数据集资源--datasets)
+  * [2.1 严格型号识别方法](#21-严格型号识别方法)
+  * [2.2 相关但不等价的方法](#22-相关但不等价的方法)
+  * [2.3 方法与任务定义的关系](#23-方法与任务定义的关系)
+* [3. 数据集与公开资源](#3-数据集与公开资源)
 
   * [3.1 数据集总览](#31-数据集总览)
-  * [3.2 重点数据集说明](#32-重点数据集说明)
-* [4. 开源方法与实现 / Methods and Implementations](#4-开源方法与实现--methods-and-implementations)
+  * [3.2 型号识别数据说明](#32-型号识别数据说明)
 
-  * [4.1 方法与代码总览](#41-方法与代码总览)
-  * [4.2 重点方法说明](#42-重点方法说明)
-* [5. 推荐实验设置 / Recommended Experimental Setup](#5-推荐实验设置--recommended-experimental-setup)
+    * [3.2.1 真实雷达型号级数据集](#321-真实雷达型号级数据集)
+    * [3.2.2 RadarCommDataset](#322-radarcommdataset)
+    * [3.2.3 仿真雷达型号库](#323-仿真雷达型号库)
+* [4. 代表性方法与论文](#4-代表性方法与论文)
 
-  * [5.1 主 benchmark](#51-主-benchmark)
-  * [5.2 基线方法](#52-基线方法)
-  * [5.3 建议流程](#53-建议流程)
-* [6. 相关任务 / Related Tasks](#6-相关任务--related-tasks)
-* [7. 推荐阅读与入门资源 / Recommended Reading and Starting Points](#7-推荐阅读与入门资源--recommended-reading-and-starting-points)
-* [8. 说明 / Notes](#8-说明--notes)
-* [9. 引用与贡献 / Citation and Contribution](#9-引用与贡献--citation-and-contribution)
+  * [4.1 论文总览](#41-论文总览)
+  * [4.2 方法简介](#42-方法简介)
+* [5. 推荐实验设置](#5-推荐实验设置)
+
+  * [5.1 建议基线](#51-建议基线)
+  * [5.2 建议流程](#52-建议流程)
+* [6. 说明](#6-说明)
+* [7. 本实验室相关贡献与专利布局](#7-本实验室相关贡献与专利布局)
+* [8. 引用与贡献](#8-引用与贡献)
 
 ---
 
-## 1. 任务概述 / Overview
+## 1. 任务概述
 
-### 1.1 什么是雷达调制类型识别？
+### 1.1 什么是雷达辐射源型号识别？
 
-雷达调制类型识别，也常被称为 **雷达波形识别**、**LPI 雷达波形识别**、**雷达信号调制识别** 或 **自动脉内调制分类（Automatic Intrapulse Modulation Classification, AIMC）**。
+雷达辐射源型号识别是指根据电子侦察、雷达告警、信号情报或电磁频谱监测系统截获的雷达辐射信号，判断目标辐射源所属的 **雷达型号、装备族、功能类别、工作体制、已知辐射源类别或未知类别**。它并不是单一形式的分类任务，而是可以根据输入数据形态、样本组织方式和标签粒度进一步划分为多种识别问题。
 
-给定一段截获的雷达信号：
+从输入数据看，雷达辐射源型号识别既可以基于 **PDW 参数数据**，也可以基于 **中频信号、基带 IQ 信号、脉内采样数据、时频图、频谱图或多模态融合特征**。其中，PDW 数据通常来源于电子侦察接收机对脉冲信号的参数测量，包含到达时间、脉宽、载频、幅度、到达角等信息；IQ 或中频数据则保留了更完整的脉内调制、频率变化、相位变化和波形结构信息。
+
+从样本粒度看，型号识别既可以是 **单脉冲级识别**，也可以是 **多脉冲序列级识别**。单脉冲级识别以一个脉冲或一小段脉内采样信号为输入，输出该脉冲可能所属的辐射源类别；多脉冲序列级识别则以一段连续脉冲序列、一个辐射源轨迹或一个截获时间片为输入，利用 PRI 变化、频率捷变、脉宽变化、幅度变化、到达角变化和工作行为规律等序列信息，判断该序列对应的雷达辐射源类别。对于敏捷雷达、多功能雷达和现代认知雷达而言，序列级建模通常比单脉冲识别更能反映雷达的行为特征。
+
+从输出标签看，识别结果也可以有不同层级。较粗粒度的标签可以是 **雷达功能类别**，例如搜索雷达、跟踪雷达、测高雷达、机载探测雷达、地面监视雷达等；中等粒度的标签可以是 **雷达体制或装备族**，例如某类脉冲多普勒雷达、相控阵雷达、调频连续波雷达或某一装备族；更细粒度的标签则可以是 **具体雷达型号或已知辐射源类别**。在开放集场景下，模型还需要判断输入是否属于训练集中未出现的未知雷达辐射源。
+
+一个典型的雷达辐射源型号识别流程可以表示为：
 
 ```text
-x = {x1, x2, ..., xN}, xi ∈ C
+截获雷达信号 / PDW 数据 / 中频信号 / IQ 信号
+        ↓
+预处理、脉冲检测、参数测量或时频变换
+        ↓
+单脉冲特征提取 / 序列建模 / 脉内表征学习 / 多模态融合
+        ↓
+分类器、度量学习模型或开放集识别器
+        ↓
+雷达型号 / 装备族 / 功能类别 / 已知辐射源类别 / 未知类别
 ```
 
-其中 `x` 通常为复基带 I/Q 采样序列，任务目标是预测该信号对应的调制或波形类别：
+如果输入是单脉冲 PDW 数据，一个脉冲通常可以表示为：
 
 ```text
-y ∈ {LFM, NLFM, SFM, Costas, Barker, Frank, P1, P2, P3, P4, BPSK, QPSK, FSK, FMCW, ...}
+pi = [TOA, RF/CF, PW, PA, DOA/AOA, ...]
 ```
 
-从最常见的研究设定看，雷达调制类型识别通常是一个 **监督式多分类问题（supervised multi-class classification problem）**。训练阶段使用带有调制标签的数据，测试阶段对未知信号输出调制类别。
+此时模型学习的是单个脉冲参数到类别标签的映射：
 
-不过，在更复杂的电子侦察和电子支援场景中，该任务也可能扩展为：
+```text
+f(pi) -> yi
+```
 
-* 低信噪比下的鲁棒调制识别；
-* 少样本调制识别；
-* 未知调制开放集识别；
-* 多分量 / 重叠雷达信号识别；
-* 调制类型识别 + 参数估计；
-* 雷达信号语义解析；
-* 雷达与通信信号联合识别。
+其中 `yi` 可以表示该脉冲被判定为某一已知雷达类别、某一辐射源类别，或作为后续序列识别中的中间结果。
 
-需要注意，雷达调制类型识别 **不是** 雷达目标识别，也不是雷达脉冲分选。前者识别的是波形或脉内调制类别，后者通常关注目标类别、辐射源簇、脉冲归属或设备身份。
+如果输入是多脉冲 PDW 序列，则一个样本可以表示为：
+
+```text
+P = [p1, p2, ..., pT]
+```
+
+其中每个脉冲 `pt` 可以包含：
+
+```text
+pt = [TOA, PRI, RF/CF, PW, PA, DOA/AOA, ...]
+```
+
+此时模型学习的是一个脉冲序列到一个辐射源类别的映射：
+
+```text
+f(P) -> y
+```
+
+其中 `y` 通常表示该序列、该辐射源轨迹或该时间片对应的雷达型号、雷达类型或已知辐射源类别。
+
+如果输入是中频信号或基带 IQ 信号，则一个样本可以表示为：
+
+```text
+x = [I1 + jQ1, I2 + jQ2, ..., IN + jQN]
+```
+
+或表示为中频采样序列：
+
+```text
+s = [s1, s2, ..., sN]
+```
+
+此时模型可以直接从原始波形中学习脉内调制、频率变化、相位变化、包络结构和频谱特征，并完成辐射源识别：
+
+```text
+f(x) -> y
+```
+
+在一些复杂场景中，模型也可以同时利用 PDW 参数和 IQ / 中频数据进行多模态融合：
+
+```text
+f(P, x) -> y
+```
+
+其中 PDW 序列提供脉间行为特征，IQ 或中频信号提供脉内波形细节。前者更适合刻画雷达的工作规律和参数捷变模式，后者更适合刻画脉内调制、硬件特征和波形细节。实际雷达辐射源型号识别系统往往需要结合这两类信息，才能在复杂电磁环境、低信噪比、多辐射源混叠和未知目标出现的情况下获得较稳定的识别性能。
+
+因此，雷达辐射源型号识别可以理解为一个多粒度、多模态、多层级的识别任务。它既可以是单脉冲级别的分类，也可以是脉冲序列级别的分类；既可以基于 PDW 参数，也可以基于中频、IQ、频谱图或时频图；输出结果既可以是单个脉冲的类别，也可以是一个脉冲序列、一个辐射源轨迹、一个时间片或一个场景中存在的多个雷达辐射源类别。
+
+### 1.2 与相邻任务的区别
+
+| 任务            | 输出                                     | 与型号识别的关系       | 是否等价于型号识别 |
+| ------------- | -------------------------------------- | -------------- | --------- |
+| 雷达脉冲分选        | 每个脉冲所属的辐射源簇                            | 型号识别前的预处理或并行任务 | 否         |
+| 雷达波形 / 脉内调制识别 | 线性调频、巴克码、Frank 码、P1-P4、Costas 等波形或调制类别 | 可作为型号识别的重要线索   | 否         |
+| 雷达功能类别识别      | 搜索、跟踪、测高、成像、空中探测等功能类别                  | 可视为较粗粒度的型号识别   | 部分等价      |
+| 雷达辐射源型号识别     | 雷达型号、装备族、已知辐射源类别                       | 本页核心任务         | 是         |
+| 特定辐射源个体识别     | 某一台具体设备或个体发射机编号                        | 比型号识别更细粒度      | 否         |
+| 射频指纹识别        | 发射机硬件个体身份                              | 可为雷达个体识别提供方法参考 | 否         |
+| 雷达工作模式识别      | 搜索、跟踪、制导、测高等模式                         | 可辅助型号识别和意图推理   | 否         |
+| 雷达频谱检测        | 频谱中是否存在雷达信号及其频域位置                      | 是检测任务，不是型号分类   | 否         |
+| 雷达干扰识别        | 干扰样式或干扰类别                              | 是电子对抗相关任务      | 否         |
 
 ---
 
-### 1.2 常见输入表示
+### 1.3 常见输入特征
 
-| Input 表示                  | Description 说明        | Usage 用途                            |
-| ------------------------- | --------------------- | ----------------------------------- |
-| I/Q sequence              | 复基带同相 / 正交采样序列        | 最直接的输入形式，适合 1D-CNN、LSTM、Transformer |
-| Amplitude / phase         | 幅度、相位或瞬时相位            | 可用于传统特征、相位编码识别                      |
-| Instantaneous frequency   | 瞬时频率                  | 对 LFM、NLFM、SFM、FSK 等频率调制有帮助         |
-| Spectrum                  | 频谱或功率谱                | 适合粗粒度波形识别                           |
-| Spectrogram               | STFT 频谱图              | 图像分类方法常用输入                          |
-| Time-frequency image, TFI | WVD、CWD、CWT、FSST 等时频图 | LPI 雷达识别中非常常见                       |
-| Ambiguity function        | 模糊函数                  | 可反映雷达波形的时延-多普勒结构                    |
-| Multi-modal features      | I/Q + 时频图 + 统计特征      | 适合多模态融合、少样本学习                       |
-
----
-
-### 1.3 常见调制类别
-
-不同数据集和论文使用的类别集合不完全一致，常见类别包括：
-
-| Family 类别族                  | Examples 示例                                         |
-| --------------------------- | --------------------------------------------------- |
-| Unmodulated / CW            | CW, pulse, unmodulated                              |
-| Frequency modulation        | LFM, NLFM, SFM, FMCW, triangular FM, exponential FM |
-| Frequency shift coding      | BFSK, 2FSK, 4FSK, Costas                            |
-| Phase coding                | BPSK, QPSK, Barker, Frank, P1, P2, P3, P4           |
-| Polyphase coding            | Frank, P1, P2, P3, P4, Zadoff-Chu-like codes        |
-| OFDM-like waveform          | OFDM, multi-carrier radar waveform                  |
-| Composite / multi-component | dual-LFM, multi-LFM, overlapping radar signals      |
-| Radar-communication mixed   | radar waveform + communication modulation           |
+| 特征或表示      | 含义                                                                 | 用途                           |
+| ---------- | ------------------------------------------------------------------ | ---------------------------- |
+| 原始 IQ      | 复基带采样信号                                                            | 端到端一维卷积网络、Transformer、自监督预训练 |
+| 时频图        | 短时傅里叶变换、连续小波变换、Wigner-Ville 分布、伪 Wigner-Ville 分布、Choi-Williams 分布等 | 脉内结构、调制样式和波形体制识别             |
+| TOA        | 到达时间                                                               | PRI 估计、模式序列分析                |
+| PRI / DTOA | 脉冲重复间隔 / 到达时间差                                                     | 区分重复周期和 PRI 调制规律             |
+| RF / CF    | 射频 / 载频                                                            | 识别载频、跳频、频率捷变规律               |
+| PW         | 脉宽                                                                 | 区分脉冲参数和发射体制                  |
+| PA / AMP   | 脉冲幅度                                                               | 辅助识别，但受传播路径和接收机影响            |
+| DOA / AOA  | 到达方向 / 到达角                                                         | 多辐射源场景中的空间辅助特征               |
+| 脉内调制特征     | 线性调频、非线性调频、二相相移键控、巴克码、Frank 码、P1-P4 等                              | 可辅助判断雷达体制，但不等同于型号            |
+| 工作模式序列     | 搜索、跟踪、制导等模式转移序列                                                    | 工作模式识别、型号辅助识别、意图推理           |
+| 硬件指纹特征     | 发射机非理想特征                                                           | 特定辐射源个体识别                    |
 
 ---
 
 ### 1.4 常见评价指标
 
-| Metric 指标                  | Description 说明         |
-| -------------------------- | ---------------------- |
-| Accuracy                   | 分类正确率，最常用指标            |
-| Macro-F1                   | 类别不均衡时更有参考价值           |
-| Precision / Recall         | 分类别分析误报和漏报             |
-| Confusion matrix           | 分析哪些调制类型容易混淆           |
-| Accuracy vs. SNR           | 低信噪比鲁棒性分析核心指标          |
-| Open-set AUROC             | 开放集 / 未知类识别常用指标        |
-| Few-shot accuracy          | N-way K-shot 设置下的识别准确率 |
-| Cross-dataset accuracy     | 跨数据集泛化能力指标             |
-| Parameter estimation error | 当任务包含参数估计时使用           |
+| 指标           | 说明                  | 推荐场景        |
+| ------------ | ------------------- | ----------- |
+| 准确率          | 分类正确率               | 类别均衡的闭集识别   |
+| 平衡准确率        | 各类别召回率的平均值          | 类别不均衡数据     |
+| 宏平均 F1       | 各类别 F1 的宏平均         | 多类别不均衡识别    |
+| 加权 F1        | 按样本数加权的 F1          | 类别频次差异较大时   |
+| 混淆矩阵         | 展示类别之间的混淆关系         | 分析易混型号或功能类别 |
+| 前 k 准确率      | 正确类别是否出现在前 k 个预测结果中 | 型号库较大时      |
+| 受试者工作特征曲线下面积 | 区分已知类和未知类的能力        | 开放集 / 分布外识别 |
+| 精确率-召回率曲线下面积 | 正负样本不均衡下的检测能力       | 开放集 / 分布外识别 |
+| FPR95        | 真阳性率为 95% 时的误报率     | 开放集识别       |
+| 期望校准误差       | 置信度校准误差             | 可靠性评估       |
+| 跨域准确率        | 跨信噪比、跨接收机、跨场景准确率    | 泛化能力评估      |
+| 小样本准确率       | N 类 K 样本设置下的准确率     | 小样本型号识别     |
 
 ---
 
-## 2. 方法分类与任务边界 / Method Taxonomy and Task Fit
+## 2. 方法分类与任务边界
 
-雷达调制类型识别方法大致可以分为 **传统特征 + 分类器、时频图 + 深度学习、一维 I/Q 端到端模型、去噪增强 + 识别、少样本 / 自监督 / 域适应、度量学习 / 开放集识别、多任务解析** 等几类。
+### 2.1 严格型号识别方法
 
----
+以下方法直接面向雷达型号、雷达类型、功能类别或已知辐射源类别识别。
 
-### 2.1 传统特征 + 分类器方法
-
-这类方法通常先从 I/Q 信号中提取人工设计特征，再使用传统机器学习分类器完成识别。
-
-| Method 方法                        | Main idea 核心思想              | Advantages 优点 | Limitations 局限 |
-| -------------------------------- | --------------------------- | ------------- | -------------- |
-| Instantaneous feature + SVM      | 提取瞬时频率、瞬时相位、包络等特征后分类        | 可解释性强         | 对噪声和参数变化敏感     |
-| Higher-order cumulants           | 利用高阶统计特征区分调制类型              | 对部分调制有效       | 对复杂雷达波形覆盖不足    |
-| Time-frequency feature + KNN/SVM | 从 STFT/WVD/CWD 等图中提取纹理或形状特征 | 适合 LPI 波形     | 特征设计依赖经验       |
-| Sparse representation            | 用稀疏字典表示不同波形                 | 理论清晰          | 计算成本较高         |
-| Template matching                | 与已知调制模板或参数模板匹配              | 适合已知波形        | 泛化能力有限         |
-
-传统方法适合作为可解释 baseline，但在低 SNR、参数变化、未知信道、多径和跨数据集场景下通常不如深度学习方法稳健。
+| 方法类型          | 任务匹配度 | 说明                                          |
+| ------------- | ----- | ------------------------------------------- |
+| 参数库匹配 / 威胁库匹配 | 高     | 将 RF、PRI、PW、扫描周期、工作模式等参数与已知雷达库匹配            |
+| 专家系统 / 规则推理   | 高     | 基于电子侦察专家规则识别雷达类型或功能类别                       |
+| PDW 参数集分类     | 高     | 使用 RF、PRI、PW、PA、DOA 等 PDW 特征进行辐射源类别识别       |
+| 传统机器学习分类      | 高     | 支持向量机、随机森林、梯度提升树、K 近邻等用于参数特征或统计特征分类         |
+| 工作模式序列建模      | 高     | 隐马尔可夫模型、长短期记忆网络、Transformer 等用于模式序列和多脉冲行为识别 |
+| 迁移学习 / 在线学习   | 高     | 解决新场景、小样本和动态更新型号库问题                         |
+| 开放集型号识别       | 高     | 测试阶段识别未知辐射源或未知型号                            |
+| 多域特征融合        | 高     | 融合 PDW、脉内调制、时频特征和工作模式特征进行型号识别               |
 
 ---
 
-### 2.2 时频图 + 深度学习方法
+### 2.2 相关但不等价的方法
 
-这类方法是目前雷达调制识别中最常见的深度学习路线。典型流程是：
+以下方法与型号识别高度相关，但不应直接写成严格型号识别。
 
-```text
-I/Q signal
-    ↓
-Time-frequency transform
-    ↓
-TFI / spectrogram image
-    ↓
-CNN / ResNet / DenseNet / ViT / Transformer
-    ↓
-Modulation class
-```
-
-| Method Family 方法族                | Main idea 核心思想                      | 备注             |
-| -------------------------------- | ----------------------------------- | -------------- |
-| STFT + CNN                       | 将信号转为 spectrogram，再进行图像分类           | 简单、易复现         |
-| CWD + CNN                        | 使用 Choi-Williams Distribution 获得时频图 | LPI-Net 代表路线   |
-| WVD / PWVD + CNN                 | 使用 Wigner-Ville 系列时频分布              | 分辨率高，但交叉项问题明显  |
-| CWT + CNN                        | 使用连续小波变换表示多尺度结构                     | 对非平稳信号友好       |
-| FSST / synchrosqueezing + CNN    | 更精细的时频重排                            | 预处理复杂          |
-| ResNet / DenseNet / EfficientNet | 使用成熟图像分类网络                          | 容易建立强 baseline |
-| ViT / Swin / CNN-Transformer     | 使用注意力建模全局结构                         | 数据量要求较高        |
+| 方法类型                           | 与型号识别的关系 | 说明                            |
+| ------------------------------ | -------- | ----------------------------- |
+| 雷达波形 / 调制识别                    | 辅助任务     | 波形类别可作为型号线索，但单独波形类别不是雷达型号     |
+| 雷达功能类别识别                       | 粗粒度相关任务  | 如果标签是雷达功能类别，可视为类型识别，但不是具体型号识别 |
+| 特定辐射源个体识别 / 射频指纹识别             | 更细粒度相关任务 | 识别具体设备个体，粒度通常细于型号             |
+| 雷达频谱检测                         | 前置检测任务   | 判断频谱中雷达信号是否存在，不输出型号           |
+| 雷达干扰识别                         | 相关电子对抗任务 | 识别干扰样式，不识别雷达辐射源型号             |
+| 调制分类数据集上的卷积网络 / 视觉 Transformer | 辅助方法     | 可用于预训练或波形识别，但不是型号识别主线         |
 
 ---
 
-### 2.3 一维 I/Q 序列端到端方法
+### 2.3 方法与任务定义的关系
 
-这类方法直接使用 I/Q 序列作为输入，避免时频图预处理。
-
-| Method 方法                     | Main idea 核心思想        | 备注                  |
-| ----------------------------- | --------------------- | ------------------- |
-| 1D-CNN                        | 对 I/Q 双通道序列进行卷积特征提取   | 简单高效                |
-| CNN-LSTM / CNN-GRU            | CNN 提取局部特征，RNN 建模时间依赖 | 适合时序结构明显的信号         |
-| TCN                           | 使用时间卷积网络建模长距离依赖       | 比 RNN 更易并行          |
-| Transformer encoder           | 用自注意力建模全局序列关系         | 对数据量和正则化要求较高        |
-| Complex-valued neural network | 直接建模复数信号              | 理论上更贴近 I/Q 数据，但实现复杂 |
-
-一维方法的优势是输入更接近原始信号，缺点是可解释性弱，且不同采样率、脉宽、带宽、载频偏移等因素会显著影响泛化。
-
----
-
-### 2.4 去噪 / 增强 + 识别方法
-
-低 SNR 是雷达调制识别中的核心难点。常见做法包括：
-
-| Method 方法                      | Main idea 核心思想   | 代表方向                    |
-| ------------------------------ | ---------------- | ----------------------- |
-| Denoising + classifier         | 先去噪，再分类          | DNCNet                  |
-| Time-frequency enhancement     | 对时频图进行去噪、增强或重构   | SFUnet-DCNN、TFGM 等      |
-| Residual / attention network   | 用残差结构、通道注意力增强鲁棒性 | ResNet、SE、CBAM、MAPNet   |
-| Multi-scale feature extraction | 多尺度捕获调制纹理        | MAPNet、pyramid networks |
-| Data augmentation              | 加噪声、频偏、时间偏移、幅度扰动 | 提升泛化能力                  |
+| 方法族                    | 是否符合型号识别 | 标签要求             | 说明              |
+| ---------------------- | -------- | ---------------- | --------------- |
+| 参数库 / 威胁库匹配            | 是        | 型号、功能类别或装备族标签    | 工程上经典，但依赖完备数据库  |
+| PDW 参数集分类              | 是        | 辐射源类别标签          | 与电子侦察中的辐射源识别最接近 |
+| 传统机器学习 + PDW 特征        | 是        | 辐射源类别标签          | 推荐作为基础基线        |
+| 深度网络 + PDW / IQ / 时频特征 | 是        | 辐射源类别标签          | 适合复杂非线性特征建模     |
+| 迁移学习 / 在线学习            | 是        | 源域或目标域部分类别标签     | 适合场景变化和型号库更新    |
+| 开放集识别                  | 是        | 已知类标签，未知类用于测试或验证 | 更贴近真实电子侦察场景     |
+| 波形 / 调制识别              | 部分相关     | 波形或调制标签          | 不能直接等同于型号识别     |
+| 特定辐射源个体识别 / 射频指纹识别     | 部分相关     | 设备个体编号           | 不能直接等同于型号识别     |
+| 频谱检测 / 干扰识别            | 相关任务     | 检测标签或干扰标签        | 不属于型号识别         |
 
 ---
 
-### 2.5 少样本、自监督与域适应方法
-
-真实雷达数据难以获取，标注成本高，因此少样本和自监督学习越来越重要。
-
-| Method 方法                                    | Main idea 核心思想          | Supervision level 监督程度 |
-| -------------------------------------------- | ----------------------- | ---------------------- |
-| Few-shot learning                            | N-way K-shot 设置下识别新调制类别 | 少量标注                   |
-| MAML / meta-learning                         | 学习可快速适应新任务的初始化          | 少样本监督                  |
-| Contrastive learning                         | 构造正负样本，学习判别性表示          | 自监督 / 弱监督 / 监督均可能      |
-| Masked signal modeling                       | 遮蔽部分 I/Q 或时频图后重构        | 自监督                    |
-| Domain adaptation                            | 从通信或其他 RF 数据迁移到雷达域      | 无监督 / 半监督 / 少监督        |
-| Self-supervised pretraining + linear probing | 先预训练表示，再少量标注微调          | 自监督 + 少量监督             |
-
----
-
-### 2.6 度量学习、开放集与未知类识别
-
-在电子侦察中，测试阶段可能出现训练集中不存在的调制类型。因此开放集识别和度量学习也很重要。
-
-| Method 方法                       | Main idea 核心思想         | 备注             |
-| ------------------------------- | ---------------------- | -------------- |
-| Triplet loss                    | 同类拉近，异类推远              | 训练阶段需要标签       |
-| Contrastive loss                | 学习相似 / 不相似信号对          | 可监督或自监督        |
-| Prototypical network            | 每类学习原型中心               | few-shot 常用    |
-| Metric learning + clustering    | 学到 embedding 后聚类或最近邻分类 | 适合新类别扩展        |
-| OpenMax / thresholding          | 通过置信度或距离阈值拒识未知类        | 简单开放集 baseline |
-| Energy-based open-set detection | 使用能量分数检测未知样本           | 深度开放集方向        |
-
----
-
-### 2.7 哪些方法严格符合调制识别定义？
-
-> **严格定义：** 给定一段单雷达信号或单脉冲 I/Q / 时频图输入，输出其雷达调制或波形类别。
-
-| Method Family 方法族                        | Matches the task? 是否符合调制识别任务 | Strict classification? 是否标准分类 | Recommendation 推荐程度 | Comment 说明                 |
-| ---------------------------------------- | ---------------------------- | ----------------------------- | ------------------- | -------------------------- |
-| STFT/CWD/WVD/CWT + CNN                   | 是                            | 是                             | ⭐⭐⭐⭐⭐               | 当前最常见、最容易复现                |
-| LPI-Net / CWD-TFA + CNN                  | 是                            | 是                             | ⭐⭐⭐⭐⭐               | 经典 LPI 雷达波形识别路线            |
-| AIMC-Spec image classification           | 是                            | 是                             | ⭐⭐⭐⭐⭐               | 推荐作为 spectrogram benchmark |
-| 1D-CNN / LSTM / Transformer on I/Q       | 是                            | 是                             | ⭐⭐⭐⭐                | 适合端到端基线                    |
-| Denoising + classification               | 是                            | 是                             | ⭐⭐⭐⭐                | 适合低 SNR 场景                 |
-| Few-shot / SSL radar recognition         | 是                            | 是 / 少样本                       | ⭐⭐⭐⭐                | 适合标注不足场景                   |
-| Metric learning / open-set recognition   | 是                            | 扩展分类                          | ⭐⭐⭐⭐                | 适合未知类和鲁棒识别                 |
-| Multi-component radar signal recognition | 部分符合                         | 多标签 / 多实例                     | ⭐⭐⭐                 | 比标准单信号分类更难                 |
-| Parameter estimation / Sig2text          | 部分符合                         | 多任务 / 解析                      | ⭐⭐⭐                 | 调制识别的扩展任务                  |
-| RadarComm joint classification           | 部分符合                         | 混合雷达通信分类                      | ⭐⭐⭐                 | 需区分雷达标签和通信标签               |
-| Communication AMC                        | 相关但不等同                       | 通信调制分类                        | ⭐⭐                  | 不能直接等同于雷达调制识别              |
-| Radar pulse deinterleaving               | 不同任务                         | 聚类 / 分选                       | ⭐⭐                  | 识别脉冲归属，不识别调制类型             |
-| Radar target recognition / SAR ATR       | 不同任务                         | 目标分类                          | ⭐                   | 识别目标，不识别波形调制               |
-
----
-
-## 3. 数据集资源 / Datasets
-
-本节整理雷达调制类型识别相关的数据集、仿真数据、数据生成代码和相关任务数据。推荐程度主要根据 **任务匹配度、是否公开、标签是否清晰、是否适合作为 benchmark、数据说明是否完整、复现实验是否便利** 等因素综合判断。
-
----
+## 3. 数据集与公开资源
 
 ### 3.1 数据集总览
 
-| Dataset 数据集                             | Task Fit 任务匹配度     | Data Type 数据类型                       | Labels 标签            | Open Source? 是否开源 | Recommendation 推荐度 | Links 链接                                                                                                                                                                                | Notes 备注                   |
-| --------------------------------------- | ------------------ | ------------------------------------ | -------------------- | ----------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| AIMC-Spec / AIMC-Spec-v2                | 标准脉内调制分类           | Spectrogram / image                  | 有调制类别标签              | 是                 | ⭐⭐⭐⭐⭐              | [Paper](https://arxiv.org/html/2601.08265v2) / [GitHub](https://github.com/seb-cocks/AIMC-image-classification) / [Kaggle](https://www.kaggle.com/datasets/sebastiancocks/aimc-spec-v2) | 论文版与代码版类别数可能有差异，使用时需注明版本   |
-| DeepRadar2022                           | 雷达调制分类             | I/Q sequence                         | 23 类雷达调制             | 是                 | ⭐⭐⭐⭐⭐              | [Kaggle](https://www.kaggle.com/datasets/khilian/deepradar)                                                                                                                             | 适合作为 1D I/Q 序列分类 benchmark |
-| RadChar                                 | 雷达信号表征 / 多任务识别     | I/Q sequence, HDF5                   | 调制类别 + 参数标签          | 是                 | ⭐⭐⭐⭐               | [GitHub](https://github.com/abcxyzi/RadChar)                                                                                                                                            | 不只是分类，还支持参数回归              |
-| RadCharSSL                              | 少样本 / 自监督雷达识别      | I/Q datasets                         | few-shot / SSL 设置    | 是                 | ⭐⭐⭐⭐               | [GitHub](https://github.com/abcxyzi/RadCharSSL) / [Kaggle](https://www.kaggle.com/datasets/abcxyzi/radcharssl-mlsp-2025)                                                                | 适合自监督预训练和少样本实验             |
-| RadarCommDataset                        | 雷达 + 通信联合识别        | I/Q waveform                         | 雷达 / 通信 / 调制多标签      | 是                 | ⭐⭐⭐                | [GitHub](https://github.com/ANDROComputationalSolutions/RadarCommDataset)                                                                                                               | 混合数据集，不是纯雷达调制分类            |
-| LPI-Net generated data                  | LPI 雷达波形识别         | Synthetic radar waveform + CWD TFI   | LPI waveform labels  | 可生成               | ⭐⭐⭐⭐               | [GitHub](https://github.com/vannguyentoan/LPI-Radar-Waveform-Recognition)                                                                                                               | 适合复现 CWD + CNN pipeline    |
-| Liuyh0308 simulation data               | 雷达脉内调制识别           | `.mat` I/Q + WVD/CWD/STFT/CWT images | 有调制类别                | 可生成               | ⭐⭐⭐⭐               | [GitHub](https://github.com/Liuyh0308/Radar-Intra-Pulse-Modulation-Signal-Simulation)                                                                                                   | 适合 few-shot 和多模态融合实验       |
-| DNCNet SIGNAL-8                         | 低 SNR 雷达信号识别       | 1D radar signals                     | 8 类雷达信号              | 仓库内提供 / 可复现       | ⭐⭐⭐⭐               | [GitHub](https://github.com/dumingyang20/DNCNet-pytorch)                                                                                                                                | 适合去噪 + 识别任务                |
-| SEMTN data                              | 多信道 / 多 SNR 雷达调制识别 | `.mat` data                          | 调制类别 + SNR / channel | 仓库内提供             | ⭐⭐⭐                | [GitHub](https://github.com/Guqih/SEMTN)                                                                                                                                                | README 简略，需自行检查字段          |
-| MAPNet data                             | 鲁棒雷达信号识别           | `.npy` / model weights               | 调制类别                 | 部分公开              | ⭐⭐⭐                | [GitHub](https://github.com/bryantky/MAPNet)                                                                                                                                            | 复现前需核查数据完整性                |
-| Radar-Intra-Pulse-Modulation-Simulation | 数据生成               | Python synthetic signals             | 可自行生成标签              | 代码可生成             | ⭐⭐⭐                | [GitHub](https://github.com/dumingyang20/Radar-Intra-Pulse-Modulation-Simulation)                                                                                                       | 适合教学和补充仿真                  |
-| RadioML / DeepSig                       | 通信 AMC             | Communication I/Q                    | 通信调制标签               | 是                 | ⭐⭐                 | [RadioML example](https://www.kaggle.com/datasets/pinxau1000/radioml2018)                                                                                                               | 不是雷达调制识别，只能作为迁移学习或对照       |
-| RadDet                                  | 雷达频谱检测             | Wideband spectrum                    | 检测标签                 | 是                 | ⭐⭐                 | [GitHub](https://github.com/abcxyzi/RadDet)                                                                                                                                             | 相关任务，不是调制分类                |
-| RadSeg                                  | 雷达活动分割             | Long I/Q sequence                    | sample-wise labels   | 是                 | ⭐⭐                 | [GitHub](https://github.com/abcxyzi/radseg)                                                                                                                                             | 相关任务，不是标准调制识别              |
+| 数据集 / 资源         | 标签含义                  | 是否严格型号识别 | 推荐度 | 链接                                                                        | 备注                       |
+| ---------------- | --------------------- | -------- | --- | ------------------------------------------------------------------------- | ------------------------ |
+| 真实雷达型号级数据集       | 雷达型号 / 装备族 / 已知辐射源类别  | 是        | ⭐   | 暂无稳定公开基准                                                                  | 真实数据敏感，公开可复现实验资源极少       |
+| RadarCommDataset | 雷达 / 通信信号类别，含部分雷达功能类别 | 部分符合     | ⭐⭐⭐ | [GitHub](https://github.com/ANDROComputationalSolutions/RadarCommDataset) | 适合作为功能类别识别或雷达 / 通信信号分类起点 |
 
 ---
 
-### 3.2 重点数据集说明
+### 3.2 型号识别数据说明
 
-#### 3.2.1 AIMC-Spec / AIMC-Spec-v2
+#### 3.2.1 真实雷达型号级数据集
 
-**推荐程度：** ⭐⭐⭐⭐⭐
-**适合用途：** 标准脉内调制分类 benchmark、spectrogram 图像分类、统一模型评估
-**数据类型：** 雷达脉内调制信号的频谱图 / 时频图图像
-**标签情况：** 有调制类别标签
-**注意事项：** 论文版和 GitHub / Kaggle 版本可能存在类别数量差异，实验时需注明具体版本。
+严格的雷达辐射源型号识别需要以真实雷达型号、装备族、功能类别或已知辐射源类别作为标签。由于真实雷达信号通常涉及敏感信息，公开可下载、可复现、具有明确型号级标签的数据集非常少。
 
-AIMC-Spec 是目前非常适合作为自动脉内调制分类的标准化 benchmark。它将雷达调制识别任务组织为基于 spectrogram 的图像分类问题，适合复现 CNN、ResNet、轻量网络、去噪网络和 Transformer 等模型。
+因此，本仓库暂不将任何真实雷达型号级公开数据列为主基准。若研究目标是严格型号识别，建议使用自建仿真型号库或内部合规数据，并清晰说明标签设计和仿真参数。
 
-**链接：** [Paper](https://arxiv.org/html/2601.08265v2) / [GitHub](https://github.com/seb-cocks/AIMC-image-classification) / [Kaggle](https://www.kaggle.com/datasets/sebastiancocks/aimc-spec-v2)
+#### 3.2.2 RadarCommDataset
 
----
+RadarCommDataset 是目前公开资源中与“雷达功能类别识别 / 雷达与通信信号分类”较为接近的数据集。该数据集由 ANDRO 的 MR Lab 发布，目标是支持无线信号的单任务和多任务学习，数据中同时包含雷达波形和通信波形，并提供信号类别、调制类别、信噪比和 IQ 采样等信息。
 
-#### 3.2.2 DeepRadar2022
+需要注意的是，RadarCommDataset **不是严格的真实雷达型号级数据集**。它的标签并不是具体雷达型号或装备族，而是信号类型和功能类别。因此，本仓库将其定位为 **雷达功能类别识别 / 雷达-通信信号分类的公开替代数据集**，适合用于验证模型对雷达功能信号的分类能力，也适合用于构建基础深度学习基线，但不应直接称为真实雷达辐射源型号识别基准。
 
-**推荐程度：** ⭐⭐⭐⭐⭐
-**适合用途：** 一维 I/Q 雷达调制分类、LSTM / CNN / Transformer 基线
-**数据类型：** 1024 × 2 I/Q 序列
-**标签情况：** 23 类雷达调制标签
-**注意事项：** 适合直接做 1D 模型，不需要先转成图像。
+**数据内容：**
 
-DeepRadar2022 是较常用的雷达调制分类数据集之一，覆盖多种雷达调制类型，适合做 I/Q 序列端到端识别实验。
+* 数据格式为 HDF5；
+* 每个样本包含 `modulation`、`signal`、`snr`、`sample` 等字段；
+* IQ 输入为 256 维张量，其中包含 128 点 I 分量和 128 点 Q 分量；
+* 采样率为 10 MS/s；
+* 每种波形包含多个快照样本；
+* 信噪比范围覆盖 -20 dB 到 18 dB，步进为 2 dB；
+* 数据提供合成动态信道、仅加性高斯白噪声和 2.45 GHz 空口采集等版本。
 
-**链接：** [Kaggle](https://www.kaggle.com/datasets/khilian/deepradar)
+**标签类型：**
 
----
+* 调制类别包括脉冲连续波、调频连续波、二相相移键控、双边带调幅、单边带调幅、振幅键控等；
+* 信号类别包括机载探测雷达、机载测距雷达、空地动目标指示雷达、地形测绘雷达、雷达高度表、卫星通信、调幅广播、短距离无线通信等。
 
-#### 3.2.3 RadChar
+从型号识别角度看，RadarCommDataset 的价值主要体现在以下方面：
 
-**推荐程度：** ⭐⭐⭐⭐
-**适合用途：** 雷达信号表征、多任务学习、分类 + 参数估计
-**数据类型：** synthetic radar I/Q data
-**标签情况：** 同时提供分类和回归标签
-**注意事项：** 它不是单纯的调制分类数据集，更适合 radar signal characterisation。
+1. **可作为雷达功能类别识别起点。** 数据中包含多种雷达功能类信号，例如空中探测雷达、测距雷达、空地动目标指示雷达、地形测绘雷达和雷达高度表等，适合用于较粗粒度的雷达类型 / 功能类别识别实验。
+2. **可用于雷达与通信信号区分。** 数据同时包含雷达类和通信类信号，适合构建“雷达信号检测 + 雷达功能类别识别”的前置实验。
+3. **适合跨信噪比鲁棒性实验。** 数据提供多个信噪比条件，可用于评估模型在低信噪比条件下的分类性能变化。
+4. **适合多任务学习实验。** 同一样本同时具有信号类别和调制类别标签，可用于研究信号类别识别与调制类别识别之间的联合学习关系。
+5. **适合构建公开基线。** 仓库提供数据读取和可视化脚本，便于快速搭建一维卷积网络、时间卷积网络、Transformer、一维残差网络等基础模型。
 
-RadChar 的价值在于不仅提供调制类别标签，还提供参数估计相关标签，因此适合研究“调制识别 + 参数估计”的多任务模型。
+**使用边界：**
 
-**链接：** [GitHub](https://github.com/abcxyzi/RadChar)
+* 可以称为雷达功能类别识别、雷达 / 通信信号分类或相关替代任务；
+* 不应称为真实雷达型号级识别数据集；
+* 不应将调制标签当作雷达型号标签；
+* 如果用于型号识别论文，应明确说明其标签粒度是功能类别和信号类别，而不是具体装备型号；
+* 如果与自建仿真型号库或内部实测数据结合使用，应将 RadarCommDataset 作为预训练、辅助验证或公开基线，而不是最终型号级评估依据。
 
----
+**链接：** [GitHub](https://github.com/ANDROComputationalSolutions/RadarCommDataset) / [Paper](https://doi.org/10.1016/j.comnet.2021.108441)
 
-#### 3.2.4 RadCharSSL
+#### 3.2.3 仿真雷达型号库
 
-**推荐程度：** ⭐⭐⭐⭐
-**适合用途：** 少样本雷达信号识别、自监督预训练、RF domain adaptation
-**数据类型：** 雷达 I/Q 数据与少样本划分
-**标签情况：** 支持 few-shot / SSL 实验设置
-**注意事项：** 适合研究标注稀缺场景，不一定适合作为普通 supervised classification 的唯一 benchmark。
-
-RadCharSSL 面向 few-shot radar signal recognition 与 self-supervised learning，适合研究 masked signal modeling、domain adaptation、linear probing 和少样本微调。
-
-**链接：** [GitHub](https://github.com/abcxyzi/RadCharSSL) / [Kaggle](https://www.kaggle.com/datasets/abcxyzi/radcharssl-mlsp-2025)
-
----
-
-#### 3.2.5 RadarCommDataset
-
-**推荐程度：** ⭐⭐⭐
-**适合用途：** 雷达 + 通信联合识别、ISAC / 频谱共存、跨域学习
-**数据类型：** 雷达和通信 I/Q 波形
-**标签情况：** 多任务标签，包括信号类型和调制类型
-**注意事项：** 不是纯雷达调制识别数据集，需要区分 radar waveform 和 communication modulation。
-
-RadarCommDataset 同时包含雷达和通信波形，适合研究联合分类、域适应和跨任务迁移，但不应直接作为纯雷达调制识别 benchmark 使用。
-
-**链接：** [GitHub](https://github.com/ANDROComputationalSolutions/RadarCommDataset)
-
----
-
-#### 3.2.6 LPI-Net generated data
-
-**推荐程度：** ⭐⭐⭐⭐
-**适合用途：** LPI 雷达波形识别、CWD 时频图、CNN 分类
-**数据类型：** synthetic radar waveform + CWD time-frequency image
-**标签情况：** 有 LPI waveform labels
-**注意事项：** 更适合复现经典 pipeline，而不是直接当作标准大规模 benchmark。
-
-该项目的价值在于流程完整：雷达信号生成、CWD 时频分析、图像转换、CNN 训练与测试。
-
-**链接：** [GitHub](https://github.com/vannguyentoan/LPI-Radar-Waveform-Recognition)
-
----
-
-#### 3.2.7 Liuyh0308 Radar-Intra-Pulse-Modulation-Signal-Simulation
-
-**推荐程度：** ⭐⭐⭐⭐
-**适合用途：** 脉内调制信号仿真、few-shot、多模态融合、时频图生成
-**数据类型：** `.mat` 序列 + WVD / CWD / STFT / CWT images
-**标签情况：** 可生成调制类别标签
-**注意事项：** 数据主要通过代码生成，复现前需确认参数设置。
-
-该项目适合构建自己的雷达脉内调制识别数据集，也适合比较一维 I/Q、时频图、多模态融合方法。
-
-**链接：** [GitHub](https://github.com/Liuyh0308/Radar-Intra-Pulse-Modulation-Signal-Simulation)
-
----
-
-## 4. 开源方法与实现 / Methods and Implementations
-
-本节整理雷达调制类型识别相关的开源方法、代码实现和可复现实验框架。推荐程度主要根据 **任务匹配度、是否开源、是否容易复现、是否适合作为 baseline、方法代表性、数据说明完整度** 等因素综合判断。
-
----
-
-### 4.1 方法与代码总览
-
-| Project / Method 项目或方法                                   | Method Type 方法类型                              | Input 输入                      | Supervision 监督方式 | Strictly RMR? 是否严格属于雷达调制识别 | Recommendation 推荐度 | Links 链接                                                                                                           | Notes 备注                       |
-| -------------------------------------------------------- | --------------------------------------------- | ----------------------------- | ---------------- | -------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
-| LPI-Radar-Waveform-Recognition / LPI-Net                 | CWD + CNN                                     | Time-frequency image          | 监督               | 是                          | ⭐⭐⭐⭐⭐              | [GitHub](https://github.com/vannguyentoan/LPI-Radar-Waveform-Recognition)                                          | 经典入门复现项目                       |
-| AIMC-image-classification                                | Spectrogram + deep models                     | Spectrogram image             | 监督               | 是                          | ⭐⭐⭐⭐⭐              | [GitHub](https://github.com/seb-cocks/AIMC-image-classification)                                                   | AIMC-Spec 官方/配套框架              |
-| Liuyh0308 Radar-Intra-Pulse-Modulation-Signal-Simulation | Signal simulation + TFI + few-shot            | I/Q + time-frequency images   | 监督 / few-shot    | 是                          | ⭐⭐⭐⭐               | [GitHub](https://github.com/Liuyh0308/Radar-Intra-Pulse-Modulation-Signal-Simulation)                              | 数据生成和多模态实验价值高                  |
-| DNCNet-pytorch                                           | Denoising + classification                    | 1D radar signal               | 监督               | 是                          | ⭐⭐⭐⭐               | [GitHub](https://github.com/dumingyang20/DNCNet-pytorch)                                                           | 低 SNR 鲁棒识别                     |
-| MAPNet                                                   | Multi-scale atrous pyramid + metric learning  | Radar signal representation   | 监督度量学习           | 是                          | ⭐⭐⭐⭐               | [GitHub](https://github.com/bryantky/MAPNet)                                                                       | 适合鲁棒识别和开放集方向                   |
-| CTNet-SSL                                                | CNN-Transformer + contrastive SSL             | Radar signal                  | 自监督 / 对比学习       | 是                          | ⭐⭐⭐                | [GitHub](https://github.com/wanan0414/CTNet-SSL)                                                                   | 文档相对较少，需核查复现细节                 |
-| SEMTN                                                    | Self-enhanced Multidimensional Taylor Network | `.mat` radar data             | 监督               | 是                          | ⭐⭐⭐                | [GitHub](https://github.com/Guqih/SEMTN)                                                                           | 多信道、多 SNR 数据，但 README 简略       |
-| rsrc-for-pub                                             | Multiple radar recognition resources          | TFI / signal / datasets       | 多种               | 部分是                        | ⭐⭐⭐⭐               | [GitHub](https://github.com/stu-cjlu-sp/rsrc-for-pub)                                                              | 包含 SFUnet-DCNN、SQDandFE 等多个子项目 |
-| RadarCNN                                                 | CNN on DeepRadar2022                          | I/Q or image                  | 监督               | 是                          | ⭐⭐                 | [GitHub](https://github.com/blackmirag3/RadarCNN)                                                                  | hobby / demo 性质，适合快速参考         |
-| Radar-Intra-Pulse-Modulation-Simulation                  | Signal simulation                             | I/Q                           | 数据生成             | 部分符合                       | ⭐⭐⭐                | [GitHub](https://github.com/dumingyang20/Radar-Intra-Pulse-Modulation-Simulation)                                  | 只生成信号，不是完整识别框架                 |
-| Sig2text                                                 | Vision-language / signal-to-text              | Time-frequency representation | 监督 / 解析          | 扩展任务                       | ⭐⭐⭐                | [Paper](https://arxiv.org/abs/2503.15213)                                                                          | 调制识别 + 参数估计 + 符号解析             |
-| MathWorks LPI radar waveform classification              | Time-frequency CNN example                    | Synthetic waveform + TFI      | 监督               | 是                          | ⭐⭐⭐                | [Example](https://www.mathworks.com/help/radar/ug/LPI-radar-waveform-classification-using-time-frequency-CNN.html) | 教学价值高，但不是普通 GitHub 开源项目        |
-| RadioML / communication AMC repos                        | Communication AMC                             | Communication I/Q             | 监督               | 否                          | ⭐⭐                 | [Example](https://github.com/topics/modulation-classification)                                                     | 只能作为迁移学习或对照，不能直接当雷达调制识别        |
-
----
-
-### 4.2 重点方法说明
-
-#### 4.2.1 LPI-Radar-Waveform-Recognition / LPI-Net
-
-**推荐程度：** ⭐⭐⭐⭐⭐
-**方法类型：** CWD time-frequency analysis + CNN
-**输入形式：** CWD 时频图
-**监督方式：** 监督分类
-**是否严格符合雷达调制识别定义：** 是
-**适合用途：** 入门复现、经典 baseline、LPI 雷达波形识别 pipeline
-
-该项目实现了一个比较完整的 LPI 雷达波形识别流程，包括雷达波形生成、CWD 时频分析、时频图转换、CNN 训练与评估。对于刚进入该方向的研究者，它是最适合先跑通的项目之一。
-
-**链接：** [GitHub](https://github.com/vannguyentoan/LPI-Radar-Waveform-Recognition)
-
----
-
-#### 4.2.2 AIMC-image-classification
-
-**推荐程度：** ⭐⭐⭐⭐⭐
-**方法类型：** Spectrogram image classification
-**输入形式：** AIMC-Spec spectrogram
-**监督方式：** 监督分类
-**是否严格符合雷达调制识别定义：** 是
-**适合用途：** 标准 benchmark、模型公平对比、轻量 CNN / ResNet / Transformer 对比
-
-该项目围绕 AIMC-Spec 数据集搭建脉内调制分类框架，适合用于统一输入格式下的模型评估。它比零散自生成数据更适合作为公开 benchmark。
-
-**链接：** [GitHub](https://github.com/seb-cocks/AIMC-image-classification)
-
----
-
-#### 4.2.3 Liuyh0308 Radar-Intra-Pulse-Modulation-Signal-Simulation
-
-**推荐程度：** ⭐⭐⭐⭐
-**方法类型：** 脉内调制信号仿真 + 时频图生成 + few-shot / 多模态识别
-**输入形式：** 一维 I/Q 序列、WVD、CWD、STFT、CWT 等
-**监督方式：** 监督 / 少样本
-**是否严格符合雷达调制识别定义：** 是
-**适合用途：** 自建数据集、少样本实验、多模态融合、时频变换对比
-
-该项目适合用来构建不同调制类别、不同 SNR、不同表示方式的数据，并可用于比较一维序列模型和二维时频图模型。
-
-**链接：** [GitHub](https://github.com/Liuyh0308/Radar-Intra-Pulse-Modulation-Signal-Simulation)
-
----
-
-#### 4.2.4 DNCNet-pytorch
-
-**推荐程度：** ⭐⭐⭐⭐
-**方法类型：** Deep radar signal denoising + recognition
-**输入形式：** 一维雷达信号
-**监督方式：** 监督分类
-**是否严格符合雷达调制识别定义：** 是
-**适合用途：** 低 SNR 识别、去噪网络、鲁棒性实验
-
-DNCNet 将雷达信号去噪和分类结合起来，适合研究低信噪比条件下分类器性能下降的问题。它可以作为“先增强 / 去噪，再识别”路线的代表性开源实现。
-
-**链接：** [GitHub](https://github.com/dumingyang20/DNCNet-pytorch)
-
----
-
-#### 4.2.5 MAPNet
-
-**推荐程度：** ⭐⭐⭐⭐
-**方法类型：** Multi-scale atrous pyramid network + deep metric learning
-**输入形式：** 雷达信号表示
-**监督方式：** 监督度量学习
-**是否严格符合雷达调制识别定义：** 是
-**适合用途：** 鲁棒识别、开放集识别、embedding 学习、度量学习对照
-
-MAPNet 关注雷达信号识别的鲁棒性，通过多尺度空洞金字塔结构和度量学习增强特征表达能力。适合用于研究已知类识别之外的鲁棒判别和开放集扩展。
-
-**链接：** [GitHub](https://github.com/bryantky/MAPNet)
-
----
-
-#### 4.2.6 CTNet-SSL
-
-**推荐程度：** ⭐⭐⭐
-**方法类型：** CNN-Transformer hybrid network + contrastive self-supervised learning
-**输入形式：** 雷达信号
-**监督方式：** 自监督 / 对比学习 / 少量标注微调
-**是否严格符合雷达调制识别定义：** 是
-**适合用途：** 标注样本稀缺、自监督预训练、对比学习
-
-该项目面向 radar signal modulation recognition 中训练数据不足的问题，适合用于参考 CNN-Transformer 混合结构和自监督对比学习思路。由于公开文档较少，复现实验前需要仔细检查数据、训练脚本和参数设置。
-
-**链接：** [GitHub](https://github.com/wanan0414/CTNet-SSL)
-
----
-
-#### 4.2.7 SEMTN
-
-**推荐程度：** ⭐⭐⭐
-**方法类型：** Self-enhanced Multidimensional Taylor Network
-**输入形式：** `.mat` 雷达数据
-**监督方式：** 监督分类
-**是否严格符合雷达调制识别定义：** 是
-**适合用途：** 多信道、多 SNR、不同衰落环境下的鲁棒识别
-
-SEMTN 仓库中包含 AWGN、Nakagami、Rayleigh、Rician 等不同信道条件下的数据文件和 MATLAB 代码。其 README 较简略，使用前需要自行解析数据格式和训练流程。
-
-**链接：** [GitHub](https://github.com/Guqih/SEMTN)
-
----
-
-#### 4.2.8 rsrc-for-pub
-
-**推荐程度：** ⭐⭐⭐⭐
-**方法类型：** 多个雷达信号识别论文代码与数据集合
-**输入形式：** 多种，包括时频图、信号序列、数据集代码
-**监督方式：** 多种
-**是否严格符合雷达调制识别定义：** 部分子项目符合
-**适合用途：** 低 SNR、多分量雷达信号识别、传统 + 深度方法对比
-
-该仓库包含多个雷达信号识别相关子项目，例如 SFUnet-DCNN、SQDandFE 等。其中部分子项目严格属于 LPI 雷达波形识别或雷达信号识别，部分则属于多分量或扩展任务。使用时应逐个子目录判断任务设定。
-
-**链接：** [GitHub](https://github.com/stu-cjlu-sp/rsrc-for-pub)
-
----
-
-#### 4.2.9 Sig2text
-
-**推荐程度：** ⭐⭐⭐
-**方法类型：** Vision-language model / signal-to-text parsing
-**输入形式：** 雷达波形时频表示
-**监督方式：** 监督解析
-**是否严格符合雷达调制识别定义：** 部分符合，属于扩展任务
-**适合用途：** 调制识别 + 参数估计 + 信号语义解析
-
-Sig2text 不是传统意义上的单标签调制分类方法，而是将雷达信号识别扩展为文本化 / 符号化解析任务。它适合关注“调制类型 + 参数 + 可解释描述”的研究方向。
-
-**链接：** [Paper](https://arxiv.org/abs/2503.15213)
-
----
-
-## 5. 推荐实验设置 / Recommended Experimental Setup
-
-如果研究目标是 **雷达调制类型识别（radar modulation type recognition）**，建议采用以下实验设置。
-
----
-
-### 5.1 主 benchmark
-
-建议优先选择以下数据集作为主 benchmark：
-
-| Goal 目标                               | Recommended Benchmark 推荐数据集 |
-| ------------------------------------- | --------------------------- |
-| 标准 spectrogram / image classification | AIMC-Spec / AIMC-Spec-v2    |
-| 一维 I/Q 序列分类                           | DeepRadar2022               |
-| 多任务：调制识别 + 参数估计                       | RadChar                     |
-| 少样本 / 自监督                             | RadCharSSL                  |
-| 雷达 + 通信联合识别                           | RadarCommDataset            |
-| 经典 LPI 波形识别 pipeline                  | LPI-Net generated data      |
-| 自建脉内调制仿真数据                            | Liuyh0308 simulation code   |
-
----
-
-### 5.2 基线方法
-
-建议实现并比较以下 baseline：
-
-| Category 类别                 | Methods 方法                                                               |
-| --------------------------- | ------------------------------------------------------------------------ |
-| Traditional features        | Instantaneous frequency + SVM, HOC + SVM, handcrafted TFI features       |
-| Time-frequency image models | STFT + CNN, CWD + CNN, WVD + ResNet, CWT + DenseNet                      |
-| 1D I/Q models               | 1D-CNN, CNN-LSTM, TCN, Transformer encoder                               |
-| Robust recognition          | Denoising + classifier, DNCNet-style model, attention CNN                |
-| Few-shot / SSL              | Prototypical network, MAML, contrastive learning, masked signal modeling |
-| Open-set recognition        | Metric learning, threshold-based rejection, OpenMax, energy score        |
-| Multi-task learning         | Classification + parameter regression                                    |
-
----
-
-### 5.3 建议流程
-
-#### 5.3.1 标准监督分类流程
+在缺少公开真实型号级数据的情况下，较合理的做法是构建仿真雷达型号库。每个“型号”不应只是单一波形类别，而应由多个参数共同定义，例如：
 
 ```text
-Raw radar I/Q signal
-      ↓
-Preprocessing
-      ↓
-Representation
-      ├── I/Q sequence
-      ├── STFT spectrogram
-      ├── CWD / WVD / CWT time-frequency image
-      └── handcrafted features
-      ↓
-Classifier
-      ├── SVM / KNN / Random Forest
-      ├── 1D-CNN / LSTM / TCN / Transformer
-      └── CNN / ResNet / ViT
-      ↓
-Modulation type prediction
-      ↓
-Evaluation: Accuracy / Macro-F1 / Confusion Matrix / Accuracy-SNR curve
+雷达型号 = {
+  RF / CF 分布,
+  PRI 类型与参数,
+  PW 范围,
+  脉内调制方式,
+  工作模式序列,
+  扫描方式,
+  参数捷变规律
+}
 ```
 
-#### 5.3.2 低信噪比鲁棒识别流程
+这种方式可以更接近型号识别，而不是简单的调制分类。实验中应明确说明每个型号的参数范围、类间差异、类内波动、训练测试划分和是否存在分布偏移。
+
+---
+
+## 4. 代表性方法与论文
+
+本节只整理与 **雷达辐射源识别 / 雷达型号识别 / 雷达类型识别 / 开放集雷达辐射源识别** 直接相关的论文。调制识别、特定辐射源个体识别、频谱检测和干扰识别论文不放入本节主表。
+
+### 4.1 论文总览
+
+| 方法 / 方向        | 代表论文                                                                                                                         | 链接                                                                                                                                                                         | 代码 / 项目                                                  | 任务匹配度 | 说明                                                               |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ----- | ---------------------------------------------------------------- |
+| 参数集聚类与分类       | Radar Emitter Recognition Based on Parameter Set Clustering and Classification                                               | [Paper](https://www.mdpi.com/2072-4292/14/18/4468) / [DOI](https://doi.org/10.3390/rs14184468)                                                                             | 论文方法                                                     | 高     | 使用 PDW 参数集聚类、频繁项构造与决策树分类进行雷达辐射源识别，任务贴近型号 / 类型识别，适合作为传统机器学习基线     |
+| 敏捷波形辐射源识别      | Recognition of Radar Emitters with Agile Waveform Based on Hybrid Deep Neural Network and Attention Mechanism                | [PDF](https://www.radioeng.cz/fulltexts/2021/21_04_0704_0712.pdf)                                                                                                          | [GitHub](https://github.com/fengyuntian2009/PDWSequence) | 高     | 基于分选后的 PDW 序列，结合动态卷积网络、长短期记忆网络与注意力机制识别敏捷波形雷达辐射源类型；目前最接近且有开源项目的方向 |
+| 迁移学习与在线学习      | Radar Emitter Identification under Transfer Learning and Online Learning                                                     | [Paper](https://www.mdpi.com/2078-2489/11/1/15) / [DOI](https://doi.org/10.3390/info11010015)                                                                              | 论文方法                                                     | 高     | 面向目标域样本少、环境变化和动态更新的雷达辐射源识别，使用迁移学习、TrAdaBoost-SVM、期望最大化与在线学习机制    |
+| 属性专用循环神经网络序列建模 | Radar Emitter Classification with Attribute-specific Recurrent Neural Networks                                               | [arXiv](https://arxiv.org/abs/1911.07683)                                                                                                                                  | 论文方法                                                     | 高     | 将 PDW 脉冲流中的不同属性分别建模，再融合时序特征，适合 RF、PW、PRI、AOA、PA 等多属性序列的辐射源类型识别   |
+| 注意力多循环神经网络     | Radar Emitter Classification With Attention-Based Multi-RNNs                                                                 | [DOI](https://doi.org/10.1109/LCOMM.2020.2995842) / [PDF](https://www.researchgate.net/publication/341533342_Radar_Emitter_Classification_With_Attention-Based_Multi-RNNs) | 论文方法                                                     | 高     | 使用多个循环神经网络分支分别处理不同脉冲流特征，并通过注意力机制融合，适合复杂脉冲流条件下的雷达辐射源分类            |
+| LSTM 雷达辐射源类型识别 | Identification of Radar Emitter Type with Recurrent Neural Networks                                                          | [PDF](https://sspd.eng.ed.ac.uk/sites/sspd.eng.ed.ac.uk/files/attachments/basicpage/20200916/S2%20Apfeld.pdf) / [DOI](https://doi.org/10.1109/SSPD47486.2020.9271988)      | 论文方法                                                     | 高     | 使用长短期记忆网络建模多功能雷达发射行为序列，关注雷达资源管理和行为语法差异，适合敏捷 / 多功能雷达类型识别          |
+| 一维卷积注意力识别      | Radar Emitter Signal Recognition Based on One-Dimensional Convolutional Neural Network with Attention Mechanism              | [Paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC7664421/) / [MDPI](https://www.mdpi.com/1424-8220/20/21/6350)                                                             | 论文方法                                                     | 中到高   | 直接从一维雷达信号序列中学习识别特征，并通过注意力机制突出关键特征；更偏脉内信号识别，但可作为雷达辐射源识别基线         |
+| 知识图谱驱动卷积网络     | A Knowledge Graph-Driven CNN for Radar Emitter Identification                                                                | [Paper](https://www.mdpi.com/2072-4292/15/13/3289) / [DOI](https://doi.org/10.3390/rs15133289)                                                                             | 论文方法                                                     | 高     | 将知识图谱引入雷达辐射源识别，用专家知识和属性关系辅助卷积网络特征选择与模型设计，适合知识增强型识别框架             |
+| 多雷达分选与识别联合方法   | A Multi-Radar Emitter Sorting and Recognition Method Based on Hierarchical Clustering and Time-Frequency Convolution Network | [Paper](https://www.sciencedirect.com/science/article/pii/S1051200425000272)                                                                                               | 论文方法                                                     | 中到高   | 同时处理混叠脉冲流中的分选与识别问题，先层次聚类完成多雷达分选，再用时频卷积网络进行辐射源识别                  |
+
+---
+
+### 4.2 方法简介
+
+#### 4.2.1 参数集聚类与分类
+
+“Radar Emitter Recognition Based on Parameter Set Clustering and Classification” 是与雷达辐射源型号识别任务较贴近的传统机器学习代表方法。该方法以 PDW 参数和雷达脉冲参数集为主要输入，先对参数集合进行聚类，提取稳定的参数组合和频繁项，再将这些结构化特征输入分类器完成雷达辐射源类别识别。与直接识别调制类型的方法不同，该方法关注的是雷达辐射源在参数层面的整体行为特征，因此更适合放在基于 PDW / 参数集的雷达型号或辐射源类型识别方向中。
+
+#### 4.2.2 敏捷波形辐射源识别
+
+“Recognition of Radar Emitters with Agile Waveform Based on Hybrid Deep Neural Network and Attention Mechanism” 面向参数快速变化的敏捷波形雷达辐射源识别问题。论文将输入定义为分选后的 PDW 脉冲序列，每个脉冲包含 PA、CF、PW、PRI、AOA 等特征，并使用动态卷积网络、长短期记忆网络与注意力机制进行联合建模。其中，卷积网络用于提取局部参数组合特征，长短期记忆网络用于学习脉冲序列中的时序变化规律，注意力机制用于增强关键脉冲和关键特征的贡献。该方法是目前较贴近“多脉冲 PDW 序列雷达辐射源类型识别”的代表方法，并且有对应开源项目，适合作为优先复现对象。
+
+#### 4.2.3 迁移学习与在线学习
+
+“Radar Emitter Identification under Transfer Learning and Online Learning” 针对雷达辐射源识别中的目标域样本稀缺、信号分布变化和模型动态更新问题，提出基于迁移学习与在线学习的识别框架。该方向的核心价值在于解决真实电子侦察环境中常见的域偏移问题，即训练数据和实际截获数据可能来自不同环境、不同信噪比或不同工作条件。论文中的方法利用源域已有样本辅助目标域识别，并通过在线学习机制逐步更新模型，使其能够适应新环境和新样本。该方向非常适合支撑实际部署场景下的雷达辐射源型号识别研究。
+
+#### 4.2.4 属性专用循环神经网络序列建模
+
+“Radar Emitter Classification with Attribute-specific Recurrent Neural Networks” 是基于 PDW 多属性序列的雷达辐射源分类方法。该方法认为不同 PDW 属性具有不同的统计特性和时序变化规律，因此不应简单地将 RF、PW、PRI、AOA、PA 等特征直接拼接输入单一模型，而是应为不同属性设计独立的循环神经网络分支进行建模。通过属性专用的循环神经网络，模型可以分别学习各类脉冲参数的时序模式，再将不同属性的序列特征进行融合，从而完成辐射源类别识别。该方法适合用于构建基于 PDW 序列的深度学习基线。
+
+#### 4.2.5 注意力多循环神经网络
+
+“Radar Emitter Classification With Attention-Based Multi-RNNs” 进一步发展了多属性序列建模思想，使用多个循环神经网络分支分别处理不同的脉冲流特征，并通过注意力机制对不同特征分支的重要性进行自适应加权。该方法适合处理复杂电磁环境下的雷达脉冲流，因为不同参数在不同噪声条件、工作模式或雷达类型下的判别作用并不相同。注意力机制能够帮助模型突出更有判别力的特征维度和时序片段，因此该方向适合作为 PDW 序列雷达辐射源分类中的深度融合模型代表。
+
+#### 4.2.6 LSTM 雷达辐射源类型识别
+
+“Identification of Radar Emitter Type with Recurrent Neural Networks” 面向多功能雷达辐射源类型识别，使用长短期记忆网络对雷达发射行为序列进行建模。该论文的重点并不是单个脉冲参数的静态分类，而是利用脉冲序列中隐含的“行为语法”或资源管理规律来区分不同类型雷达。对于敏捷雷达、多功能雷达和认知雷达而言，不同雷达可能具有相近的参数取值范围，但其工作流程、任务切换规律和发射行为序列存在差异。长短期记忆网络适合捕捉这类长期时序依赖，因此该方法很适合用于雷达辐射源类型识别和行为模式辅助识别。
+
+#### 4.2.7 一维卷积注意力识别
+
+“Radar Emitter Signal Recognition Based on One-Dimensional Convolutional Neural Network with Attention Mechanism” 使用一维卷积神经网络和注意力机制直接从雷达信号序列中提取判别特征。与基于 PDW 参数的识别方法不同，该类方法更偏向从原始一维信号或脉内采样序列中学习局部结构特征，能够减少对人工特征设计的依赖。注意力机制用于强化信号序列中的关键片段和关键特征，使模型更关注对辐射源区分有贡献的部分。该方法更接近“雷达辐射源信号识别”而非纯 PDW 型号识别，但可以作为脉内信号分支或端到端识别基线。
+
+#### 4.2.8 知识图谱驱动卷积网络
+
+“A Knowledge Graph-Driven CNN for Radar Emitter Identification” 将雷达领域知识与深度学习模型结合，用知识图谱辅助雷达辐射源识别。该方法的核心思想是将专家经验、参数关系、辐射源属性和类别之间的关联组织成知识图谱，再利用这些先验信息指导特征选择、模型结构设计或识别决策。相比完全端到端的卷积网络方法，知识图谱驱动的模型更强调可解释性和先验知识利用，更贴近电子侦察任务中依赖专家规则、参数库和辐射源知识库的实际流程。该方向适合作为“知识增强型雷达型号识别”或“规则与深度学习融合识别”的代表。
+
+#### 4.2.9 多雷达分选与识别联合方法
+
+“A Multi-Radar Emitter Sorting and Recognition Method Based on Hierarchical Clustering and Time-Frequency Convolution Network” 同时考虑多雷达混叠脉冲流中的分选与识别问题。该方法首先利用层次聚类对混叠 PDW 或脉冲流进行分选，将来自不同辐射源的脉冲尽可能划分到不同序列中；随后通过时频分析和卷积网络对分选后的信号进行识别。该方法更接近真实电子侦察中的处理流程，因为实际接收数据往往不是单一雷达的干净脉冲序列，而是多个辐射源同时存在、脉冲交叠、参数变化复杂的混合场景。因此，该方向适合作为“分选—识别联合建模”或“复杂多辐射源场景雷达型号识别”的代表方法。
+
+---
+
+## 5. 推荐实验设置
+
+### 5.1 建议基线
+
+| 类别     | 方法                                          | 用途              |
+| ------ | ------------------------------------------- | --------------- |
+| 参数匹配基线 | 参数模板匹配、专家规则库、最近邻模板匹配                        | 工程式型号识别基线       |
+| 传统机器学习 | 支持向量机、随机森林、梯度提升树、K 近邻、高斯混合模型、隐马尔可夫模型        | PDW / 参数特征分类    |
+| 序列建模   | 隐马尔可夫模型、长短期记忆网络、门控循环单元、Transformer 编码器      | PDW 序列和工作模式序列识别 |
+| 时频图方法  | 短时傅里叶变换 / 连续小波变换 / 伪 Wigner-Ville 分布 + 卷积网络 | 脉内结构辅助识别        |
+| 原始信号方法 | 一维卷积网络、时间卷积网络、Transformer                   | IQ 或一维信号端到端识别   |
+| 迁移学习   | TrAdaBoost、领域自适应、在线学习                       | 小样本目标域和在线更新     |
+| 开放集识别  | OpenMax、能量分数、原型距离、度量自编码器                    | 未知辐射源检测         |
+| 表征学习   | 自编码器、对比学习、掩码信号建模                            | 预训练和少标签识别       |
+
+---
+
+### 5.2 建议流程
+
+如果使用 PDW / 参数集输入：
 
 ```text
-Noisy radar signal
-      ↓
-Denoising or enhancement module
-      ↓
-Signal / time-frequency representation
-      ↓
-Classifier
-      ↓
-Accuracy vs. SNR evaluation
+PDW 序列 / 参数集合
+        ↓
+特征清洗与标准化
+        ↓
+参数统计 / 时序特征 / 工作模式特征
+        ↓
+传统分类器或深度序列模型
+        ↓
+雷达型号 / 功能类别 / 未知类判断
 ```
 
-#### 5.3.3 少样本 / 自监督流程
+如果使用 IQ 或时频图输入：
 
 ```text
-Unlabeled RF / radar data
-      ↓
-Self-supervised pretraining
-      ↓
-Few-shot labeled radar samples
-      ↓
-Linear probing or fine-tuning
-      ↓
-N-way K-shot evaluation
+原始 IQ 信号
+        ↓
+预处理与归一化
+        ↓
+短时傅里叶变换 / 连续小波变换 / 伪 Wigner-Ville 分布 或端到端编码器
+        ↓
+卷积网络 / 一维卷积网络 / Transformer
+        ↓
+型号类别 / 波形辅助类别 / 未知类判断
 ```
 
 ---
 
-## 6. 相关任务 / Related Tasks
+## 6. 说明
 
-雷达调制类型识别经常与其他任务混在一起，使用资源时需要明确区分。
-
-| Related Task 相关任务                        | Task Definition 任务定义            | 与调制识别的关系        |
-| ---------------------------------------- | ------------------------------- | --------------- |
-| Communication AMC                        | 识别通信信号调制，如 QPSK、QAM、FSK         | 方法相似，但数据和物理机制不同 |
-| Radar pulse deinterleaving               | 将混叠 PDW 脉冲流分到不同辐射源              | 分选任务，不是调制类型分类   |
-| Radar emitter identification / SEI       | 识别具体辐射源或设备身份                    | 关注设备指纹，不只是波形类别  |
-| Radar target recognition / SAR ATR       | 识别目标类别，如飞机、车辆、舰船                | 目标识别，不是信号调制识别   |
-| Radar spectrum detection                 | 判断宽带频谱中是否存在雷达信号                 | 检测任务，可作为识别前处理   |
-| Radar activity segmentation              | 对长 I/Q 序列做 sample-wise 雷达活动标注   | 分割任务，不是单信号分类    |
-| Radar jamming recognition                | 识别干扰样式，如 ISRJ、VGPO、comb jamming | 对象是干扰信号，和调制识别相邻 |
-| Multi-component radar signal recognition | 一个观测中有多个雷达信号成分，需要识别多个类别         | 是调制识别的复杂扩展      |
-| Signal parameter estimation              | 估计带宽、脉宽、调频斜率、码长等参数              | 可与调制识别组成多任务学习   |
-| Signal-to-text / symbolic parsing        | 将雷达信号解析为文本或结构化参数                | 是调制识别的上位任务      |
+* 本页核心任务是雷达辐射源型号识别，不是雷达脉冲分选、波形识别、调制识别或特定辐射源个体识别；
+* 严格型号识别需要型号、装备族、功能类别或已知辐射源类别标签；
+* 公开真实雷达型号级数据非常有限，使用相关数据集时必须说明它们只是替代性任务或辅助资源；
+* 调制类别、波形类别和硬件个体编号都不能直接等同于雷达型号；
+* 使用仿真型号库时，应明确每个型号的 RF、PRI、PW、调制方式、工作模式和参数分布；
+* 报告结果时，不建议只给准确率，应同时给出宏平均 F1、混淆矩阵、跨域结果和开放集指标；
+* 开放集识别、跨域泛化和在线更新比普通闭集分类更接近真实电子侦察场景；
+* 涉及真实雷达信号数据时，应遵守数据来源、许可证、安全合规和保密要求。
 
 ---
 
-## 7. 推荐阅读与入门资源 / Recommended Reading and Starting Points
+## 7. 本实验室相关贡献与专利布局
 
-### 标准调制识别 benchmark
+除公开论文和开源方法外，本实验室也围绕雷达辐射源型号识别任务开展了系统研究，并形成了若干面向非合作雷达辐射源识别的专利成果。这些工作主要聚焦于上下文语义建模、多变量时序建模、自监督表征学习以及脉内—脉间联合对比学习等方向，能够与现有 PDW 序列识别、IQ 信号识别和开放集识别方法形成互补。
 
-* [AIMC-Spec paper](https://arxiv.org/html/2601.08265v2)
-* [AIMC-image-classification](https://github.com/seb-cocks/AIMC-image-classification)
-* [AIMC-Spec-v2 Kaggle](https://www.kaggle.com/datasets/sebastiancocks/aimc-spec-v2)
-* [DeepRadar2022](https://www.kaggle.com/datasets/khilian/deepradar)
-
-### 经典 LPI 雷达波形识别
-
-* [LPI-Radar-Waveform-Recognition](https://github.com/vannguyentoan/LPI-Radar-Waveform-Recognition)
-* [MathWorks LPI Radar Waveform Classification Example](https://www.mathworks.com/help/radar/ug/LPI-radar-waveform-classification-using-time-frequency-CNN.html)
-
-### 数据集与少样本 / 自监督方向
-
-* [RadChar](https://github.com/abcxyzi/RadChar)
-* [RadCharSSL](https://github.com/abcxyzi/RadCharSSL)
-* [RadCharSSL Kaggle](https://www.kaggle.com/datasets/abcxyzi/radcharssl-mlsp-2025)
-* [RadarCommDataset](https://github.com/ANDROComputationalSolutions/RadarCommDataset)
-
-### 低 SNR 与鲁棒识别
-
-* [DNCNet-pytorch](https://github.com/dumingyang20/DNCNet-pytorch)
-* [MAPNet](https://github.com/bryantky/MAPNet)
-* [SEMTN](https://github.com/Guqih/SEMTN)
-* [rsrc-for-pub](https://github.com/stu-cjlu-sp/rsrc-for-pub)
-
-### 数据生成与仿真
-
-* [Radar-Intra-Pulse-Modulation-Signal-Simulation](https://github.com/Liuyh0308/Radar-Intra-Pulse-Modulation-Signal-Simulation)
-* [Radar-Intra-Pulse-Modulation-Simulation](https://github.com/dumingyang20/Radar-Intra-Pulse-Modulation-Simulation)
-
-### 扩展任务
-
-* [Sig2text paper](https://arxiv.org/abs/2503.15213)
-* [RadDet](https://github.com/abcxyzi/RadDet)
-* [RadSeg](https://github.com/abcxyzi/radseg)
+| 序号 | 专利 / 方法名称                          | 国家 / 地区 | 方法方向              | 主要贡献                                                                       | 与雷达型号识别任务的关系                                       |
+| -: | ---------------------------------- | ------- | ----------------- | -------------------------------------------------------------------------- | -------------------------------------------------- |
+|  1 | 一种基于上下文语义感知的雷达辐射源型号识别方法            | 中国      | 上下文语义建模           | 从雷达脉冲序列或辐射源行为序列中挖掘上下文语义关系，利用前后脉冲、参数变化和工作行为之间的关联增强型号识别能力                    | 适合处理单个脉冲判别信息不足、需要依赖序列上下文进行识别的多功能雷达或敏捷雷达场景          |
+|  2 | 一种基于多变量时序 Transformer 的雷达辐射源型号识别方法 | 中国      | 多变量时序 Transformer | 将 RF/CF、PW、PRI、PA、DOA/AOA 等 PDW 参数视为多变量时序输入，通过 Transformer 建模长距离依赖和跨变量交互关系 | 适合基于 PDW 序列的雷达辐射源型号识别，可作为循环神经网络 / 长短期记忆网络方法的增强替代方案 |
+|  3 | 基于混合自监督学习的非合作雷达辐射源型号识别方法           | 中国      | 自监督表征学习           | 针对非合作场景中标注样本不足的问题，利用自监督任务从未标注雷达信号或 PDW 数据中学习通用表征，再迁移到型号识别任务                | 适合解决真实电子侦察环境中标注数据稀缺、场景变化大和新型辐射源样本不足的问题             |
+|  4 | 基于脉内脉间对比学习的非合作雷达辐射源型号识别方法          | 中国      | 脉内—脉间联合对比学习       | 同时利用脉内信号特征和脉间 PDW 序列特征，通过对比学习增强同类辐射源样本的一致性和不同辐射源样本的可分性                     | 适合多模态雷达辐射源型号识别，能够融合 IQ / 中频脉内信息与 PDW 脉间行为信息        |
 
 ---
 
-## 8. 说明 / Notes
+## 8. 引用与贡献
 
-* 与通信 automatic modulation classification 相比，雷达调制类型识别的数据集和开源代码明显更少；
-* 很多论文使用自生成数据，实验结果高度依赖调制参数、SNR 范围、采样率、脉宽、带宽、训练测试划分；
-* 报告结果时应明确说明输入是 I/Q 序列、频谱图、STFT、CWD、WVD、CWT 还是其他表示；
-* 如果使用合成数据，应公布信号参数范围、噪声模型、信道模型、SNR 设置和随机种子；
-* 如果研究低 SNR 鲁棒性，应报告 accuracy-SNR curve，而不是只报告平均准确率；
-* 如果研究少样本，应明确 N-way K-shot 设置、base / novel 类划分、episode 数量和置信区间；
-* 如果研究开放集，应明确 known / unknown 类划分，并报告 AUROC、OSCR、FPR95 等指标；
-* 如果使用 RadarCommDataset 或 RadioML，应明确哪些实验是雷达调制识别，哪些是通信 AMC 或雷达通信联合识别；
-* 不应将雷达检测、脉冲分选、辐射源个体识别、目标识别、干扰识别直接写成雷达调制类型识别；
-* 本仓库中的推荐程度会随着项目更新、数据开放情况和复现记录变化而调整。
+本资源列表由 **厦门大学信息学院 SmartDSP 实验室** 整理与维护，旨在为雷达型号识别以及相关电磁信号智能处理研究提供一个相对系统、可复现、便于扩展的开源资源索引。
 
----
+欢迎通过议题（Issue）或合并请求（Pull Request）补充和修正资源，包括但不限于：
 
-## 9. 引用与贡献 / Citation and Contribution
+* 新发布的雷达辐射源型号识别数据集；
+* 明确以雷达型号、功能类别或辐射源类别为标签的公开资源；
+* 雷达辐射源识别、开放集识别、跨域泛化、在线学习相关论文；
+* 可复现的型号识别基准结果；
+* 对调制识别、波形识别、特定辐射源个体识别与型号识别边界的补充说明。
 
-本资源列表由 **厦门大学信息学院 SMARTDSP 实验室** 整理与维护，旨在汇总雷达调制类型识别（Radar Modulation Type Recognition / Radar Waveform Recognition / Automatic Intrapulse Modulation Classification）相关的公开数据集、开源代码、代表性方法和可复现实验资源。
-
-如果本仓库对你的学习、研究或项目开发有帮助，欢迎在论文、报告或项目文档中引用本仓库，并请同时引用相关方法、数据集和代码仓库的原始论文或项目页面。
-
-### 维护说明
-
-* 本仓库主要关注雷达调制类型识别、LPI radar waveform recognition、automatic intrapulse modulation classification、radar signal recognition 及其相关任务；
-* 资源整理过程中会尽量标注任务类型、数据可用性、监督方式和是否严格符合雷达调制类型识别定义；
-* 由于部分开源项目的数据说明、许可证、复现流程可能不完整，相关判断会随着项目更新持续修正；
-* 本仓库中的推荐程度仅代表整理者基于任务匹配度、开源程度、复现价值和数据说明完整度给出的参考意见。
-
-### 贡献方式
-
-欢迎通过 Issue 或 Pull Request 补充和修正资源，包括但不限于：
-
-* 新发布的雷达调制类型识别数据集；
-* LPI 雷达波形识别、AIMC、radar signal recognition 相关开源实现；
-* 可复现的 benchmark 结果；
-* 数据集可用性、链接失效或许可证信息的修正；
-* 关于某个方法是否严格属于雷达调制类型识别的补充说明；
-* 通信 AMC、雷达检测、分选、目标识别等相关但不同任务的边界说明。
-
-建议提交资源时尽量包含以下信息：
+建议提交资源时包含：
 
 ```text
-项目名称：
-项目链接：
+资源名称：
+资源链接：
 任务类型：
-方法类型：
-输入表示：
-是否开源代码：
+标签含义：
+是否严格属于型号识别：
 是否开源数据：
-是否包含标签：
-是否严格属于雷达调制类型识别：
+是否开源代码：
 推荐理由：
 备注：
 ```
+
+本仓库仅用于公开学术资源整理和可复现实验参考，不提供非公开雷达数据库，不提供敏感系统参数，不支持任何未经授权的信号截获、识别或电子对抗用途。
