@@ -403,8 +403,8 @@ This section expands only on the papers already listed in the table above, witho
 
 #### 4.3.1 Radar Emitter Recognition Based on Parameter Set Clustering and Classification
 
-**Chinese Title:** 基于参数集聚类与分类的雷达辐射源识别
-**Publication:** Remote Sensing, 2022, 14(18):4468
+-**Chinese Title:** 基于参数集聚类与分类的雷达辐射源识别
+-**Publication:** Remote Sensing, 2022, 14(18):4468
 **Paper Link:** [Paper](https://www.mdpi.com/2072-4292/14/18/4468) / [DOI](https://doi.org/10.3390/rs14184468)
 **Method Category:** PDW parameter-set modeling / traditional machine learning / clustering feature extraction + decision-tree classification
 **Input Data:** Radar pulse trains or PDW parameters, mainly focusing on PRI / repetition-frequency features, while other pulse parameters can also be embedded
